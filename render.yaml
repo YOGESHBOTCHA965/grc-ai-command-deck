@@ -1,9 +1,9 @@
 services:
   - type: web
-    name: grc-ai-dashboard
+    name: grc-ai-command-deck-app
     env: docker
-    plan: starter
     autoDeploy: true
+    healthCheckPath: /
     envVars:
       - key: APP_ENV
         value: production

@@ -1,0 +1,13 @@
+.git
+.gitignore
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.log
+data
+outputs
+outputs_sample
+demo_outputs
+.vscode

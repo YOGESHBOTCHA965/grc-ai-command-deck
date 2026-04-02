@@ -1,0 +1,20 @@
+[
+  {
+    "control_id": "ia-2.4",
+    "title": "Local Access to Non-privileged Accounts",
+    "description": "",
+    "similarity": 0.37542515993118286
+  },
+  {
+    "control_id": "ia-2.3",
+    "title": "Local Access to Privileged Accounts",
+    "description": "",
+    "similarity": 0.36879104375839233
+  },
+  {
+    "control_id": "ia-2.1",
+    "title": "Multi-factor Authentication to Privileged Accounts",
+    "description": "Implement multi-factor authentication for access to privileged accounts. Multi-factor authentication requires the use of two or more different factors to achieve authentication. The authentication factors are defined as follows: something you know (e.g., a personal identification number [PIN]), something you have (e.g., a physical authenticator such as a cryptographic private key), or something you are (e.g., a biometric). Multi-factor authentication solutions that feature physical authenticators include hardware authenticators that provide time-based or challenge-response outputs and smart cards such as the U.S. Government Personal Identity Verification (PIV) card or the Department of Defense (DoD) Common Access Card (CAC). In addition to authenticating users at the system level (i.e., at logon), organizations may employ authentication mechanisms at the application level, at their discretion, to provide increased security. Regardless of the type of access (i.e., local, network, remote), privileged accounts are authenticated using multi-factor options appropriate for the level of risk. Organizations can add additional security measures, such as additional or more rigorous authentication mechanisms, for specific types of access. multi-factor authentication is implemented for access to privileged accounts. Identification and authentication policy\n\nprocedures addressing user identification and authentication\n\nsystem security plan\n\nsystem design documentation\n\nsystem configuration settings and associated documentation\n\nsystem audit records\n\nlist of system accounts\n\nother relevant documents or records Organizational personnel with system operations responsibilities\n\norganizational personnel with account management responsibilities\n\norganizational personnel with information security responsibilities\n\nsystem/network administrators\n\nsystem developers Mechanisms supporting and/or implementing a multi-factor authentication capability",
+    "similarity": 0.35638701915740967
+  }
+]

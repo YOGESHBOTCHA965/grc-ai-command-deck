@@ -1,0 +1,11 @@
+UserID,EventSource,Region,MFA_Used,EventName,EventDetail,Resource
+user-001,signin.amazonaws.com,us-east-1,True,ConsoleLogin,User logged in with MFA,IAM User
+user-002,s3.amazonaws.com,us-east-1,False,CreateBucket,Public S3 bucket created,S3 Bucket
+root,signin.amazonaws.com,us-west-2,False,ConsoleLogin,Root login without MFA,Root Account
+user-015,ec2.amazonaws.com,eu-west-1,True,AuthorizeSecurityGroupIngress,Security group updated with restricted source CIDR,Security Group
+user-021,s3.amazonaws.com,ap-south-1,False,PutBucketAcl,Bucket ACL set to public-read,S3 Bucket
+user-044,iam.amazonaws.com,us-east-1,False,CreateAccessKey,Long-lived IAM access key created without approval,IAM User
+user-009,kms.amazonaws.com,us-west-2,True,DisableKey,Unused KMS key disabled per key lifecycle policy,KMS Key
+user-030,ec2.amazonaws.com,us-east-1,False,AuthorizeSecurityGroupIngress,Security group opened to 0.0.0.0/0 on port 22,Security Group
+user-051,signin.amazonaws.com,eu-west-1,True,ConsoleLogin,User logged in with MFA,IAM User
+user-060,s3.amazonaws.com,us-east-1,True,PutBucketPublicAccessBlock,S3 public access block enabled,S3 Bucket

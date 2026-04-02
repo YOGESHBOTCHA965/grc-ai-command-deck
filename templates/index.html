@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GRC AI Command Deck</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="ambient-grid"></div>
+  <div class="ambient-noise"></div>
+  <div class="bg-orb orb-1"></div>
+  <div class="bg-orb orb-2"></div>
+  <div class="bg-orb orb-3"></div>
+
+  <header class="topbar">
+    <div class="hero-copy">
+      <p class="eyebrow">Cloud Compliance Intelligence</p>
+      <h1>GRC AI Command Deck</h1>
+      <p class="hero-sub">A live operations cockpit for NIST control mapping, anomaly drift detection, and audit-ready evidence export.</p>
+      <div class="hero-chips">
+        <span class="hero-chip">Live Telemetry</span>
+        <span class="hero-chip">SBERT Mapping</span>
+        <span class="hero-chip">HITL Workflow</span>
+      </div>
+    </div>
+    <div class="right-tools">
+      <form id="loginForm" class="toolbar auth-toolbar">
+        <input type="text" id="username" placeholder="Username" value="analyst" required />
+        <input type="password" id="password" placeholder="Password" value="analyst123" required />
+        <button type="submit" class="btn btn-primary">Login</button>
+        <button type="button" id="logoutBtn" class="btn btn-secondary">Logout</button>
+      </form>
+      <div class="toolbar">
+        <span id="authBadge" class="auth-badge">Not logged in</span>
+        <label for="outputSetSelect">Output Set</label>
+        <select id="outputSetSelect"></select>
+        <button id="refreshBtn" class="btn btn-secondary">Refresh</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="panel run-panel reveal">
+      <h2>Run Pipeline</h2>
+      <div class="form-grid">
+        <label>
+          Logs Count
+          <input type="number" id="logsCount" min="100" max="100000" value="1000" />
+        </label>
+        <label>
+          Similarity Threshold
+          <input type="number" id="similarityThreshold" min="0" max="1" step="0.01" value="0.7" />
+        </label>
+      </div>
+      <button id="runBtn" class="btn btn-primary">Run Full Pipeline</button>
+      <p id="runStatus" class="status">Ready.</p>
+      <div class="job-progress-wrap">
+        <div id="jobProgressBar" class="job-progress-bar"></div>
+      </div>
+      <p id="jobStage" class="status">No active job.</p>
+    </section>
+
+    <section class="panel metrics-panel reveal">
+      <h2>Telemetry</h2>
+      <div class="metrics-grid">
+        <article class="metric-card"><span>Controls</span><strong id="controlsCount">0</strong></article>
+        <article class="metric-card"><span>Total Logs</span><strong id="logsCountMetric">0</strong></article>
+        <article class="metric-card"><span>Drift Flags</span><strong id="driftCount">0</strong></article>
+        <article class="metric-card"><span>HITL Required</span><strong id="hitlCount">0</strong></article>
+      </div>
+      <canvas id="driftChart" height="140"></canvas>
+    </section>
+
+    <section class="panel artifacts-panel reveal">
+      <h2>Artifacts</h2>
+      <div class="inline-actions">
+        <button id="downloadBundleBtn" class="btn btn-secondary">Export CSV Bundle</button>
+      </div>
+      <div id="artifactsTableWrap"></div>
+    </section>
+
+    <section class="panel mappings-panel reveal">
+      <h2>Recent Mappings</h2>
+      <div id="mappingsList" class="scroll"></div>
+    </section>
+
+    <section class="panel history-panel reveal">
+      <h2>Run History</h2>
+      <div id="historyTableWrap"></div>
+    </section>
+
+    <section class="panel run-detail-panel reveal">
+      <h2>Run Detail</h2>
+      <div id="runDetailWrap">Select a run from history to inspect artifacts and metrics.</div>
+    </section>
+
+    <section class="panel report-panel reveal">
+      <h2>Compliance Drift Report</h2>
+      <div class="inline-actions">
+        <button id="downloadPdfBtn" class="btn btn-secondary">Export Report PDF</button>
+      </div>
+      <pre id="reportText" class="report-box">Loading...</pre>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

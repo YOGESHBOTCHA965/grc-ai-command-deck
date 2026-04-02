@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: grc-ai-dashboard
+    env: docker
+    plan: starter
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: GRC_ADMIN_USER
+        sync: false
+      - key: GRC_ADMIN_PASSWORD
+        sync: false
+      - key: GRC_ADMIN_ROLE
+        value: admin

@@ -1,0 +1,14 @@
+version: "3.9"
+
+services:
+  grc-ai:
+    build: .
+    container_name: grc-ai-dashboard
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: development
+    volumes:
+      - ./data:/app/data
+      - ./outputs:/app/outputs
+    restart: unless-stopped

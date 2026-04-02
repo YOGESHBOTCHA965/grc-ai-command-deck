@@ -1,0 +1,24 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Runtime data
+.env
+.env.*
+!.env.example
+data/users.json
+data/run_history.json
+outputs/
+
+# Build and cache
+.pytest_cache/
+.mypy_cache/
+coverage/

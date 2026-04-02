@@ -1,5 +1,18 @@
 # GRC AI Pipeline (NIST 800-53 + CloudTrail + SBERT + Isolation Forest)
 
+## Live Demo
+
+- URL: https://grc-ai-command.onrender.com/
+- Username: demo_admin
+- Password: GrcAI_Demo@2026
+
+Quick test:
+
+1. Login with the demo credentials above.
+2. Click `Run Full Pipeline`.
+3. Open `Run History` and click `View` on the latest run.
+4. Export `Report PDF` or `CSV Bundle`.
+
 This project implements all requested phases:
 
 1. Scrapes NIST SP 800-53 Rev 5 controls from a JSON/CSV source.
@@ -50,14 +63,14 @@ What you can do from the dashboard:
 
 Demo credentials:
 
-- `analyst / analyst123` (can run pipeline)
-- `reviewer / reviewer123` (read/export only)
-- `admin / admin123` (full access)
+- `demo_admin / GrcAI_Demo@2026` (full access)
+- `demo_analyst / GrcAI_Analyst@2026` (can run pipeline)
+- `demo_reviewer / GrcAI_Review@2026` (read/export only)
 
 Security note:
 
 - User credentials are persisted in `data/users.json` with salted PBKDF2-SHA256 password hashes.
-- In production mode (`APP_ENV=production`), the app requires `GRC_ADMIN_USER` and `GRC_ADMIN_PASSWORD` for first startup if `data/users.json` does not exist.
+- If `GRC_ADMIN_USER` and `GRC_ADMIN_PASSWORD` are set, those values are used for first-start user seeding.
 
 API endpoints (for future integrations):
 

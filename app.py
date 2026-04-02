@@ -32,6 +32,10 @@ USERS_PATH = Path("data") / "users.json"
 TOKENS: Dict[str, Dict[str, str]] = {}
 JOBS: Dict[str, Dict[str, Any]] = {}
 APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
+DEFAULT_DEMO_ADMIN_USER = os.getenv("GRC_DEMO_ADMIN_USER", "demo_admin").strip() or "demo_admin"
+DEFAULT_DEMO_ADMIN_PASSWORD = os.getenv("GRC_DEMO_ADMIN_PASSWORD", "GrcAI_Demo@2026").strip() or "GrcAI_Demo@2026"
+DEFAULT_DEMO_REVIEWER_USER = os.getenv("GRC_DEMO_REVIEWER_USER", "demo_reviewer").strip() or "demo_reviewer"
+DEFAULT_DEMO_REVIEWER_PASSWORD = os.getenv("GRC_DEMO_REVIEWER_PASSWORD", "GrcAI_Review@2026").strip() or "GrcAI_Review@2026"
 
 
 OUTPUT_SETS = {
@@ -123,23 +127,18 @@ def _ensure_default_users() -> None:
         _save_users(seeded)
         return
 
-    if APP_ENV in {"production", "prod"}:
-        raise RuntimeError(
-            "No users found for production mode. Set GRC_ADMIN_USER and GRC_ADMIN_PASSWORD env vars."
-        )
-
     seeded = {
-        "analyst": {
-            **_hash_password("analyst123"),
-            "role": "analyst",
+        DEFAULT_DEMO_ADMIN_USER: {
+            **_hash_password(DEFAULT_DEMO_ADMIN_PASSWORD),
+            "role": "admin",
         },
-        "reviewer": {
-            **_hash_password("reviewer123"),
+        DEFAULT_DEMO_REVIEWER_USER: {
+            **_hash_password(DEFAULT_DEMO_REVIEWER_PASSWORD),
             "role": "reviewer",
         },
-        "admin": {
-            **_hash_password("admin123"),
-            "role": "admin",
+        "demo_analyst": {
+            **_hash_password("GrcAI_Analyst@2026"),
+            "role": "analyst",
         },
     }
     _save_users(seeded)

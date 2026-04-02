@@ -469,7 +469,7 @@ downloadBundleBtn.addEventListener("click", async () => {
   initializePanelTilt();
   applyRoleState();
   try {
-    runStatus.textContent = "Login required. Use analyst/admin/reviewer demo users.";
+    runStatus.textContent = "Login required. Use demo_admin / GrcAI_Demo@2026 for live demo.";
   } catch (error) {
     runStatus.textContent = `Startup error: ${error.message}`;
   }

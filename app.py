@@ -32,6 +32,7 @@ USERS_PATH = Path("data") / "users.json"
 TOKENS: Dict[str, Dict[str, str]] = {}
 JOBS: Dict[str, Dict[str, Any]] = {}
 APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
+FORCE_DEMO_USERS = os.getenv("GRC_FORCE_DEMO_USERS", "false").strip().lower() in {"1", "true", "yes"}
 DEFAULT_DEMO_ADMIN_USER = os.getenv("GRC_DEMO_ADMIN_USER", "demo_admin").strip() or "demo_admin"
 DEFAULT_DEMO_ADMIN_PASSWORD = os.getenv("GRC_DEMO_ADMIN_PASSWORD", "GrcAI_Demo@2026").strip() or "GrcAI_Demo@2026"
 DEFAULT_DEMO_REVIEWER_USER = os.getenv("GRC_DEMO_REVIEWER_USER", "demo_reviewer").strip() or "demo_reviewer"
@@ -110,7 +111,7 @@ def _load_users() -> Dict[str, Dict[str, str]]:
 
 def _ensure_default_users() -> None:
     users = _load_users()
-    if users:
+    if users and not FORCE_DEMO_USERS:
         return
 
     env_admin_user = os.getenv("GRC_ADMIN_USER", "").strip()
@@ -127,19 +128,18 @@ def _ensure_default_users() -> None:
         _save_users(seeded)
         return
 
-    seeded = {
-        DEFAULT_DEMO_ADMIN_USER: {
-            **_hash_password(DEFAULT_DEMO_ADMIN_PASSWORD),
-            "role": "admin",
-        },
-        DEFAULT_DEMO_REVIEWER_USER: {
-            **_hash_password(DEFAULT_DEMO_REVIEWER_PASSWORD),
-            "role": "reviewer",
-        },
-        "demo_analyst": {
-            **_hash_password("GrcAI_Analyst@2026"),
-            "role": "analyst",
-        },
+    seeded = users.copy() if users else {}
+    seeded[DEFAULT_DEMO_ADMIN_USER] = {
+        **_hash_password(DEFAULT_DEMO_ADMIN_PASSWORD),
+        "role": "admin",
+    }
+    seeded[DEFAULT_DEMO_REVIEWER_USER] = {
+        **_hash_password(DEFAULT_DEMO_REVIEWER_PASSWORD),
+        "role": "reviewer",
+    }
+    seeded["demo_analyst"] = {
+        **_hash_password("GrcAI_Analyst@2026"),
+        "role": "analyst",
     }
     _save_users(seeded)
 

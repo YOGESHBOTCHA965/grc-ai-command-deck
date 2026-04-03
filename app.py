@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import base64
+import hashlib
+import hmac
 import io
 import json
 import os
 import secrets
 import threading
+import time
 import uuid
 import zipfile
 from datetime import datetime, timezone
@@ -35,6 +38,8 @@ USERS_PATH = Path("data") / "users.json"
 TOKENS: Dict[str, Dict[str, str]] = {}
 JOBS: Dict[str, Dict[str, Any]] = {}
 APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
+TOKEN_SECRET = os.getenv("GRC_TOKEN_SECRET", "grc-ai-demo-token-secret-change-in-prod")
+TOKEN_TTL_SECONDS = int(os.getenv("GRC_TOKEN_TTL_SECONDS", "43200"))
 FORCE_DEMO_USERS = os.getenv("GRC_FORCE_DEMO_USERS", "false").strip().lower() in {"1", "true", "yes"}
 DEFAULT_DEMO_ADMIN_USER = os.getenv("GRC_DEMO_ADMIN_USER", "demo_admin").strip() or "demo_admin"
 DEFAULT_DEMO_ADMIN_PASSWORD = os.getenv("GRC_DEMO_ADMIN_PASSWORD", "GrcAI_Demo@2026").strip() or "GrcAI_Demo@2026"
@@ -252,9 +257,53 @@ def _extract_token(authorization: str | None) -> str:
     return authorization.split(" ", 1)[1].strip()
 
 
+def _b64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
+
+
+def _b64url_decode(data: str) -> bytes:
+    padding = "=" * (-len(data) % 4)
+    return base64.urlsafe_b64decode((data + padding).encode("ascii"))
+
+
+def _issue_token(username: str, role: str) -> str:
+    payload = {
+        "u": username,
+        "r": role,
+        "exp": int(time.time()) + TOKEN_TTL_SECONDS,
+    }
+    payload_str = _b64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+    sig = hmac.new(TOKEN_SECRET.encode("utf-8"), payload_str.encode("ascii"), hashlib.sha256).digest()
+    sig_str = _b64url_encode(sig)
+    return f"{payload_str}.{sig_str}"
+
+
+def _verify_token(token: str) -> Dict[str, str] | None:
+    try:
+        payload_part, sig_part = token.split(".", 1)
+    except ValueError:
+        return None
+
+    expected_sig = hmac.new(TOKEN_SECRET.encode("utf-8"), payload_part.encode("ascii"), hashlib.sha256).digest()
+    provided_sig = _b64url_decode(sig_part)
+    if not hmac.compare_digest(expected_sig, provided_sig):
+        return None
+
+    payload_raw = _b64url_decode(payload_part)
+    payload = json.loads(payload_raw.decode("utf-8"))
+    if int(payload.get("exp", 0)) < int(time.time()):
+        return None
+
+    username = str(payload.get("u", "")).strip()
+    role = str(payload.get("r", "")).strip()
+    if not username or not role:
+        return None
+    return {"username": username, "role": role}
+
+
 def get_current_user(authorization: str | None = Header(default=None)) -> Dict[str, str]:
     token = _extract_token(authorization)
-    user = TOKENS.get(token)
+    user = _verify_token(token)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     return user
@@ -384,8 +433,7 @@ def login(payload: LoginRequest) -> LoginResponse:
     if not salt_b64 or not hash_b64 or not _verify_password(payload.password, salt_b64, hash_b64):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
-    token = secrets.token_urlsafe(24)
-    TOKENS[token] = {"username": payload.username, "role": record["role"]}
+    token = _issue_token(payload.username, record["role"])
     return LoginResponse(access_token=token, username=payload.username, role=record["role"])
 
 

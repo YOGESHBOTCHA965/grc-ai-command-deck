@@ -21,7 +21,10 @@ from pydantic import BaseModel, Field
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
-from grc_ai_pipeline import DEFAULT_NIST_JSON_URL, run_pipeline
+DEFAULT_NIST_JSON_URL = (
+    "https://raw.githubusercontent.com/usnistgov/oscal-content/main/"
+    "nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_catalog.json"
+)
 
 app = FastAPI(title="GRC AI Dashboard", version="1.0.0")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -309,6 +312,9 @@ def _run_pipeline_job(job_id: str, run_id: str, payload: PipelineRunRequest, use
 
     try:
         JOBS[job_id].update({"progress": 25, "stage": "Running GRC pipeline"})
+        # Import lazily to avoid loading heavy ML dependencies during web app cold start.
+        from grc_ai_pipeline import run_pipeline
+
         outputs = run_pipeline(
             nist_source_url=payload.nist_source_url,
             logs_count=payload.logs_count,

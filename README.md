@@ -15,6 +15,10 @@
 
 ---
 
+## 🌐 Live Demo
+
+Access the hosted app here: https://grc-ai-command.onrender.com
+
 ## 📖 The Elevator Pitch
 
 Governance, Risk, and Compliance (GRC) analysts spend hundreds of hours manually mapping cloud logs to regulatory frameworks and searching for compliance violations. **GRC AI Automation Command Center** solves this by using Machine Learning to automate the process.

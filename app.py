@@ -196,6 +196,7 @@ def _summary_for_output_set(output_set: str) -> Dict[str, Any]:
         "drift_rate": 0.0,
         "mapped_count": 0,
         "hitl_required_count": 0,
+        "mitre_hitl_required_count": 0,
     }
 
     controls_path = artifacts["controls_csv"]
@@ -217,6 +218,7 @@ def _summary_for_output_set(output_set: str) -> Dict[str, Any]:
     if isinstance(mappings, list):
         summary["mapped_count"] = len(mappings)
         summary["hitl_required_count"] = sum(1 for m in mappings if bool(m.get("hitl_required")))
+        summary["mitre_hitl_required_count"] = sum(1 for m in mappings if bool(m.get("mitre_hitl_required")))
 
     return summary
 
@@ -414,6 +416,31 @@ def _run_pipeline_job(job_id: str, run_id: str, payload: PipelineRunRequest, use
 
 
 _ensure_default_users()
+
+
+@app.on_event("startup")
+def startup_event():
+    # Warm up GRC AI pipeline cache in a background thread to prevent blocking FastAPI startup
+    def warm_cache():
+        try:
+            print("Warming up GRC AI pipeline model and controls cache...")
+            from grc_ai_pipeline import fetch_nist_controls, NISTControlMapper, DEFAULT_NIST_JSON_URL
+            from grc_ai_pipeline import load_mitre_attack_techniques, MITREAttackMapper
+            
+            # Fetch controls (will read from cache if it exists, or fetch once)
+            controls_df = fetch_nist_controls(DEFAULT_NIST_JSON_URL)
+            # Initialize mapper (will load model and cache embeddings)
+            _ = NISTControlMapper(controls_df)
+            
+            # Fetch and warm MITRE techniques
+            mitre_df = load_mitre_attack_techniques()
+            _ = MITREAttackMapper(mitre_df)
+            
+            print("GRC AI pipeline cache warmed up successfully.")
+        except Exception as e:
+            print(f"Failed to warm up cache: {e}")
+
+    threading.Thread(target=warm_cache, daemon=True).start()
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -640,3 +667,58 @@ def run_full_pipeline(
         job_id=job_id,
         run_id=run_id,
     )
+
+
+class ResolveMappingRequest(BaseModel):
+    output_set: str = Field(default="outputs")
+    raw_log: str
+    selected_control_id: Optional[str] = None
+    selected_mitre_id: Optional[str] = None
+    hitl_decision: str
+
+
+@app.post("/api/mappings/resolve")
+def resolve_mapping(
+    payload: ResolveMappingRequest,
+    user: Dict[str, str] = Depends(require_roles("admin", "analyst", "reviewer")),
+):
+    base_dir = _safe_output_dir(payload.output_set)
+    mapping_path = base_dir / "sbert_mapping_results.json"
+
+    if not mapping_path.exists():
+        raise HTTPException(status_code=404, detail="Mapping file not found. Run pipeline first.")
+
+    mappings = _read_json(mapping_path, default=[])
+    if not isinstance(mappings, list):
+        raise HTTPException(status_code=500, detail="Invalid mapping file format.")
+
+    found = False
+    for m in mappings:
+        if m.get("RawLog") == payload.raw_log:
+            if payload.selected_control_id is not None:
+                m["selected_control_id"] = payload.selected_control_id
+                m["hitl_decision"] = f"Human verified: {payload.hitl_decision} (by {user['username']})"
+                m["hitl_required"] = False
+            if payload.selected_mitre_id is not None:
+                m["selected_mitre_id"] = payload.selected_mitre_id
+                m["mitre_hitl_decision"] = f"Human verified: {payload.hitl_decision} (by {user['username']})"
+                m["mitre_hitl_required"] = False
+            found = True
+            break
+
+    if not found:
+        raise HTTPException(status_code=404, detail="Mapping item not found")
+
+    # Save back to file
+    mapping_path.write_text(json.dumps(mappings, indent=2), encoding="utf-8")
+
+    # Regenerate markdown report!
+    anomaly_path = base_dir / "anomaly_scored_logs.csv"
+    report_md = base_dir / "compliance_drift_report.md"
+    if anomaly_path.exists():
+        scored_df = pd.read_csv(anomaly_path)
+        flagged_df = scored_df[scored_df["DriftFlag"] == "Potential Compliance Drift"].copy().reset_index(drop=True)
+        from grc_ai_pipeline import generate_markdown_report
+        generate_markdown_report(flagged_df, mappings, report_md)
+
+    return {"message": "Mapping decision resolved successfully."}

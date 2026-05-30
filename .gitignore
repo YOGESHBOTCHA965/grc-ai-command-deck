@@ -16,6 +16,8 @@ Thumbs.db
 !.env.example
 data/users.json
 data/run_history.json
+data/cache/
+data/nist_catalog_cache.json
 outputs/
 
 # Build and cache

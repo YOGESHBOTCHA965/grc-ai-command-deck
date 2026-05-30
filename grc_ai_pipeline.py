@@ -11,13 +11,16 @@ Phases covered:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
 import json
+import os
+import pickle
 import random
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -32,6 +35,17 @@ DEFAULT_NIST_JSON_URL = (
     "https://raw.githubusercontent.com/usnistgov/oscal-content/main/"
     "nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_catalog.json"
 )
+
+# Global caches for SentenceTransformer and Embeddings
+_MODEL_CACHE: Dict[str, SentenceTransformer] = {}
+_EMBEDDINGS_CACHE: Dict[str, Any] = {}
+
+
+def get_sentence_transformer(model_name: str = "all-MiniLM-L6-v2") -> SentenceTransformer:
+    """Load and cache the SentenceTransformer model to prevent repeated initialization."""
+    if model_name not in _MODEL_CACHE:
+        _MODEL_CACHE[model_name] = SentenceTransformer(model_name)
+    return _MODEL_CACHE[model_name]
 
 
 @dataclass
@@ -52,7 +66,7 @@ class NISTControlMapper:
             raise ValueError(f"controls_df missing columns: {sorted(missing)}")
 
         self.controls_df = controls_df.reset_index(drop=True).copy()
-        self.model = SentenceTransformer(model_name)
+        self.model = get_sentence_transformer(model_name)
         control_texts = (
             self.controls_df["control_id"].astype(str)
             + " "
@@ -60,7 +74,40 @@ class NISTControlMapper:
             + " "
             + self.controls_df["description"].astype(str)
         ).tolist()
-        self.control_embeddings = self.model.encode(control_texts, convert_to_tensor=True)
+
+        # Generate a unique key for the cache based on the controls text data hash
+        texts_hash = hashlib.md5(" ".join(control_texts).encode("utf-8")).hexdigest()
+        cache_key = f"{model_name}_{texts_hash}"
+
+        # 1. Try memory cache first
+        if cache_key in _EMBEDDINGS_CACHE:
+            self.control_embeddings = _EMBEDDINGS_CACHE[cache_key]
+        else:
+            # 2. Try disk cache
+            cache_dir = Path("data") / "cache"
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            cache_file = cache_dir / f"{cache_key}.pkl"
+
+            if cache_file.exists():
+                try:
+                    with open(cache_file, "rb") as f:
+                        self.control_embeddings = pickle.load(f)
+                    _EMBEDDINGS_CACHE[cache_key] = self.control_embeddings
+                except Exception:
+                    # Fallback to recomputing if pickle load fails
+                    self.control_embeddings = self.model.encode(control_texts, convert_to_tensor=True)
+                    _EMBEDDINGS_CACHE[cache_key] = self.control_embeddings
+                    with open(cache_file, "wb") as f:
+                        pickle.dump(self.control_embeddings, f)
+            else:
+                # 3. Compute and cache
+                self.control_embeddings = self.model.encode(control_texts, convert_to_tensor=True)
+                _EMBEDDINGS_CACHE[cache_key] = self.control_embeddings
+                try:
+                    with open(cache_file, "wb") as f:
+                        pickle.dump(self.control_embeddings, f)
+                except Exception:
+                    pass
 
     def top_k_controls(self, raw_log: str, k: int = 3) -> List[ControlMatch]:
         """Return top-k most relevant controls for a raw log string."""
@@ -84,6 +131,106 @@ class NISTControlMapper:
                 )
             )
         return matches
+
+
+
+@dataclass
+class TechniqueMatch:
+    technique_id: str
+    name: str
+    description: str
+    similarity: float
+
+
+class MITREAttackMapper:
+    """SBERT-based mapper between log text and MITRE ATT&CK Cloud technique descriptions."""
+
+    def __init__(self, techniques_df: pd.DataFrame, model_name: str = "all-MiniLM-L6-v2") -> None:
+        required = {"technique_id", "name", "description"}
+        missing = required.difference(techniques_df.columns)
+        if missing:
+            raise ValueError(f"techniques_df missing columns: {sorted(missing)}")
+
+        self.techniques_df = techniques_df.reset_index(drop=True).copy()
+        self.model = get_sentence_transformer(model_name)
+        technique_texts = (
+            self.techniques_df["technique_id"].astype(str)
+            + " "
+            + self.techniques_df["name"].astype(str)
+            + " "
+            + self.techniques_df["description"].astype(str)
+        ).tolist()
+
+        # Generate a unique key for the cache based on the techniques text data hash
+        texts_hash = hashlib.md5(" ".join(technique_texts).encode("utf-8")).hexdigest()
+        cache_key = f"{model_name}_mitre_{texts_hash}"
+
+        # 1. Try memory cache first
+        if cache_key in _EMBEDDINGS_CACHE:
+            self.technique_embeddings = _EMBEDDINGS_CACHE[cache_key]
+        else:
+            # 2. Try disk cache
+            cache_dir = Path("data") / "cache"
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            cache_file = cache_dir / f"{cache_key}.pkl"
+
+            if cache_file.exists():
+                try:
+                    with open(cache_file, "rb") as f:
+                        self.technique_embeddings = pickle.load(f)
+                    _EMBEDDINGS_CACHE[cache_key] = self.technique_embeddings
+                except Exception:
+                    # Fallback to recomputing if pickle load fails
+                    self.technique_embeddings = self.model.encode(technique_texts, convert_to_tensor=True)
+                    _EMBEDDINGS_CACHE[cache_key] = self.technique_embeddings
+                    with open(cache_file, "wb") as f:
+                        pickle.dump(self.technique_embeddings, f)
+            else:
+                # 3. Compute and cache
+                self.technique_embeddings = self.model.encode(technique_texts, convert_to_tensor=True)
+                _EMBEDDINGS_CACHE[cache_key] = self.technique_embeddings
+                try:
+                    with open(cache_file, "wb") as f:
+                        pickle.dump(self.technique_embeddings, f)
+                except Exception:
+                    pass
+
+    def top_k_techniques(self, raw_log: str, k: int = 3) -> List[TechniqueMatch]:
+        """Return top-k most relevant techniques for a raw log string."""
+        if not raw_log or not raw_log.strip():
+            return []
+
+        query_embedding = self.model.encode(raw_log, convert_to_tensor=True)
+        cosine_scores = util.cos_sim(query_embedding, self.technique_embeddings)[0]
+        top_k = min(k, len(self.techniques_df))
+        scores, indices = cosine_scores.topk(top_k)
+
+        matches: List[TechniqueMatch] = []
+        for score, idx in zip(scores.tolist(), indices.tolist()):
+            row = self.techniques_df.iloc[idx]
+            matches.append(
+                TechniqueMatch(
+                    technique_id=str(row["technique_id"]),
+                    name=str(row["name"]),
+                    description=str(row["description"]),
+                    similarity=float(score),
+                )
+            )
+        return matches
+
+
+def load_mitre_attack_techniques(filepath: Path = Path("data") / "mitre_attack_cloud.json") -> pd.DataFrame:
+    """Load the curated MITRE ATT&CK techniques from a JSON file."""
+    if not filepath.exists():
+        # Fallback in case directory context is weird (e.g. running from parent/sub directories)
+        alt_path = Path(__file__).parent / "data" / "mitre_attack_cloud.json"
+        if alt_path.exists():
+            filepath = alt_path
+        else:
+            raise FileNotFoundError(f"MITRE ATT&CK techniques database not found at {filepath}")
+    with open(filepath, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    return pd.DataFrame(data)
 
 
 def _extract_prose_from_parts(parts: Iterable[Dict]) -> str:
@@ -123,10 +270,62 @@ def _flatten_oscal_controls(controls: Iterable[Dict], family: str) -> List[Dict[
     return rows
 
 
+def _parse_nist_json(payload: Dict) -> pd.DataFrame:
+    catalog = payload.get("catalog", payload)
+    groups = catalog.get("groups", [])
+
+    rows: List[Dict[str, str]] = []
+    for group in groups:
+        family = str(group.get("id") or group.get("title") or "UNKNOWN").strip()
+        rows.extend(_flatten_oscal_controls(group.get("controls", []), family))
+
+    controls_df = pd.DataFrame(rows)
+    if controls_df.empty:
+        raise ValueError("No controls parsed from JSON source.")
+
+    controls_df = controls_df.fillna("")
+    controls_df = controls_df.drop_duplicates(subset=["control_id", "description"]).reset_index(drop=True)
+    return controls_df
+
+
 def fetch_nist_controls(source_url: str = DEFAULT_NIST_JSON_URL, timeout: int = 90) -> pd.DataFrame:
-    """Fetch NIST SP 800-53 Rev 5 controls from a JSON or CSV source URL."""
-    response = requests.get(source_url, timeout=timeout)
-    response.raise_for_status()
+    """Fetch NIST SP 800-53 Rev 5 controls from a JSON or CSV source URL, caching default catalog locally."""
+    is_default = source_url == DEFAULT_NIST_JSON_URL
+    local_cache_path = Path("data") / "nist_catalog_cache.json"
+
+    if is_default and local_cache_path.exists():
+        try:
+            with open(local_cache_path, "r", encoding="utf-8") as f:
+                payload = json.load(f)
+            return _parse_nist_json(payload)
+        except Exception:
+            pass
+
+    # Fetch from web
+    try:
+        response = requests.get(source_url, timeout=timeout)
+        response.raise_for_status()
+    except Exception as exc:
+        # If offline/timeout, try to fall back to ANY existing cached file
+        backup_paths = [
+            local_cache_path,
+            Path("outputs_sample") / "nist_controls_rev5.json",
+            Path("outputs") / "nist_controls_rev5.json"
+        ]
+        for bp in backup_paths:
+            if bp.exists():
+                try:
+                    if bp.suffix == ".json":
+                        with open(bp, "r", encoding="utf-8") as f:
+                            payload = json.load(f)
+                        if isinstance(payload, list):
+                            return pd.DataFrame(payload)
+                        return _parse_nist_json(payload)
+                    elif bp.suffix == ".csv":
+                        return pd.read_csv(bp)
+                except Exception:
+                    pass
+        raise exc
 
     if source_url.lower().endswith(".csv"):
         df = pd.read_csv(io.StringIO(response.text))
@@ -158,21 +357,15 @@ def fetch_nist_controls(source_url: str = DEFAULT_NIST_JSON_URL, timeout: int = 
         return out
 
     payload = response.json()
-    catalog = payload.get("catalog", payload)
-    groups = catalog.get("groups", [])
+    if is_default:
+        try:
+            local_cache_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(local_cache_path, "w", encoding="utf-8") as f:
+                json.dump(payload, f)
+        except Exception:
+            pass
 
-    rows: List[Dict[str, str]] = []
-    for group in groups:
-        family = str(group.get("id") or group.get("title") or "UNKNOWN").strip()
-        rows.extend(_flatten_oscal_controls(group.get("controls", []), family))
-
-    controls_df = pd.DataFrame(rows)
-    if controls_df.empty:
-        raise ValueError("No controls parsed from JSON source.")
-
-    controls_df = controls_df.fillna("")
-    controls_df = controls_df.drop_duplicates(subset=["control_id", "description"]).reset_index(drop=True)
-    return controls_df
+    return _parse_nist_json(payload)
 
 
 def save_controls(controls_df: pd.DataFrame, output_json: Path, output_csv: Path) -> None:
@@ -385,7 +578,14 @@ def train_isolation_forest_and_score(
 
     scores = pipeline.named_steps["model"].score_samples(pipeline.named_steps["prep"].transform(model_df))
     df["Anomaly Score"] = scores
-    df["DriftFlag"] = np.where(df["Anomaly Score"] < drift_threshold, "Potential Compliance Drift", "Normal")
+    
+    # Dynamically determine the drift threshold based on the contamination rate (percentile)
+    # if the default hardcoded -0.5 threshold would yield no anomalies.
+    actual_threshold = drift_threshold
+    if drift_threshold == -0.5 and (scores < -0.5).sum() == 0:
+        actual_threshold = float(np.percentile(scores, contamination * 100))
+        
+    df["DriftFlag"] = np.where(df["Anomaly Score"] <= actual_threshold, "Potential Compliance Drift", "Normal")
 
     region_frequency = model_df["Region"].value_counts().to_dict()
     df["DriftReason"] = df.apply(lambda r: _build_drift_reason(r, region_frequency), axis=1)
@@ -456,13 +656,83 @@ def resolve_mapping_with_hitl(
     }
 
 
+def resolve_mitre_mapping_with_hitl(
+    log_text: str,
+    top_matches: List[TechniqueMatch],
+    similarity_threshold: float = 0.7,
+    reviewer_fn: Optional[Callable[[str, List[TechniqueMatch]], Optional[str]]] = None,
+    interactive: bool = False,
+) -> Dict[str, object]:
+    """Human-in-the-loop MITRE technique selection when model confidence is low."""
+    if not top_matches:
+        return {
+            "selected_mitre_id": "UNKNOWN",
+            "selected_mitre_similarity": 0.0,
+            "mitre_hitl_required": True,
+            "mitre_hitl_decision": "No match candidates generated",
+            "mitre_top_matches": [],
+        }
+
+    best = top_matches[0]
+    hitl_required = best.similarity < similarity_threshold
+    selected_mitre_id = best.technique_id
+    selected_similarity = best.similarity
+    hitl_decision = "Accepted model suggestion"
+
+    if hitl_required:
+        hitl_decision = "Pending human review"
+        if reviewer_fn is not None:
+            human_choice = reviewer_fn(log_text, top_matches)
+            if human_choice:
+                selected_mitre_id = human_choice
+                hitl_decision = f"Human selected {human_choice}"
+        elif interactive:
+            print("\nHITL MITRE REVIEW REQUIRED")
+            print(f"Log: {log_text}")
+            for idx, match in enumerate(top_matches, start=1):
+                print(
+                    f"  {idx}. {match.technique_id} ({match.similarity:.3f}) - "
+                    f"{match.name[:90]}"
+                )
+            print("Enter technique id to override, or press Enter to keep top match.")
+            choice = input("Technique ID: ").strip()
+            if choice:
+                selected_mitre_id = choice
+                hitl_decision = f"Human selected {choice}"
+
+    return {
+        "selected_mitre_id": selected_mitre_id,
+        "selected_mitre_similarity": float(selected_similarity),
+        "mitre_hitl_required": hitl_required,
+        "mitre_hitl_decision": hitl_decision,
+        "mitre_top_matches": [
+            {
+                "technique_id": m.technique_id,
+                "name": m.name,
+                "similarity": round(m.similarity, 4),
+            }
+            for m in top_matches
+        ],
+    }
+
+
 def map_logs_to_controls(
     logs_df: pd.DataFrame,
     controls_df: pd.DataFrame,
     similarity_threshold: float = 0.7,
     interactive_hitl: bool = False,
+    mitre_techniques_df: Optional[pd.DataFrame] = None,
 ) -> List[Dict[str, object]]:
     mapper = NISTControlMapper(controls_df)
+    
+    if mitre_techniques_df is None:
+        try:
+            mitre_techniques_df = load_mitre_attack_techniques()
+        except Exception:
+            mitre_techniques_df = pd.DataFrame()
+            
+    mitre_mapper = MITREAttackMapper(mitre_techniques_df) if not mitre_techniques_df.empty else None
+    
     mapping_results: List[Dict[str, object]] = []
 
     for _, row in logs_df.iterrows():
@@ -474,19 +744,45 @@ def map_logs_to_controls(
             similarity_threshold=similarity_threshold,
             interactive=interactive_hitl,
         )
-        mapping_results.append(
-            {
-                "Resource": row.get("Resource", "Unknown Resource"),
-                "RawLog": raw_log,
-                "DriftReason": row.get("DriftReason", "Potential policy deviation"),
-                "RemediationStep": row.get("RemediationStep", "Investigate and remediate configuration."),
-                "selected_control_id": resolved["selected_control_id"],
-                "selected_similarity": resolved["selected_similarity"],
-                "hitl_required": resolved["hitl_required"],
-                "hitl_decision": resolved["hitl_decision"],
-                "top_matches": resolved["top_matches"],
-            }
-        )
+        
+        item = {
+            "Resource": row.get("Resource", "Unknown Resource"),
+            "RawLog": raw_log,
+            "DriftReason": row.get("DriftReason", "Potential policy deviation"),
+            "RemediationStep": row.get("RemediationStep", "Investigate and remediate configuration."),
+            "selected_control_id": resolved["selected_control_id"],
+            "selected_similarity": resolved["selected_similarity"],
+            "hitl_required": resolved["hitl_required"],
+            "hitl_decision": resolved["hitl_decision"],
+            "top_matches": resolved["top_matches"],
+        }
+        
+        # Default empty MITRE fields if mapping fails or isn't run
+        item.update({
+            "selected_mitre_id": "UNKNOWN",
+            "selected_mitre_similarity": 0.0,
+            "mitre_hitl_required": False,
+            "mitre_hitl_decision": "No matches computed",
+            "mitre_top_matches": [],
+        })
+        
+        if mitre_mapper:
+            top_mitre_matches = mitre_mapper.top_k_techniques(raw_log, k=3)
+            mitre_resolved = resolve_mitre_mapping_with_hitl(
+                raw_log,
+                top_mitre_matches,
+                similarity_threshold=similarity_threshold,
+                interactive=interactive_hitl,
+            )
+            item.update({
+                "selected_mitre_id": mitre_resolved["selected_mitre_id"],
+                "selected_mitre_similarity": mitre_resolved["selected_mitre_similarity"],
+                "mitre_hitl_required": mitre_resolved["mitre_hitl_required"],
+                "mitre_hitl_decision": mitre_resolved["mitre_hitl_decision"],
+                "mitre_top_matches": mitre_resolved["mitre_top_matches"],
+            })
+            
+        mapping_results.append(item)
 
     return mapping_results
 
@@ -501,10 +797,10 @@ def generate_markdown_report(
     result_count = min(len(flagged), len(mapping_results))
 
     lines: List[str] = []
-    lines.append("# Compliance Drift Report")
+    lines.append("# Compliance & Threat Detection Report")
     lines.append("")
     lines.append(f"Generated at: {datetime.now(timezone.utc).isoformat()}")
-    lines.append(f"Flagged anomalies: {len(flagged)}")
+    lines.append(f"Flagged anomalies (Compliance Drift & Threat Signals): {len(flagged)}")
     lines.append("")
 
     if result_count == 0:
@@ -516,24 +812,30 @@ def generate_markdown_report(
 
             resource = str(mapping.get("Resource", anomaly_row.get("Resource", "Unknown Resource")))
             control_id = str(mapping.get("selected_control_id", "UNKNOWN"))
+            mitre_id = str(mapping.get("selected_mitre_id", "UNKNOWN"))
             reason = str(mapping.get("DriftReason", anomaly_row.get("DriftReason", "Unknown reason")))
             recommendation = str(mapping.get("RemediationStep", anomaly_row.get("RemediationStep", "Review configuration.")))
+            
             sim = float(mapping.get("selected_similarity", 0.0))
             hitl_note = str(mapping.get("hitl_decision", ""))
+            
+            mitre_sim = float(mapping.get("selected_mitre_similarity", 0.0))
+            mitre_hitl_note = str(mapping.get("mitre_hitl_decision", ""))
 
-            lines.append(f"## Anomaly {idx + 1}")
-            lines.append(
-                f"Anomaly detected in {resource}. This violates NIST Control {control_id} "
-                f"because {reason}. Recommendation: {recommendation}."
-            )
-            lines.append(f"- Similarity Score: {sim:.3f}")
-            lines.append(f"- HITL Decision: {hitl_note}")
+            lines.append(f"## Alert {idx + 1}: Anomaly in {resource}")
+            lines.append(f"**Description**: {reason}")
+            lines.append(f"- **NIST SP 800-53 Control**: {control_id} (Similarity: {sim:.3f})")
+            lines.append(f"  - NIST HITL Status: {hitl_note}")
+            lines.append(f"- **MITRE ATT&CK Technique**: {mitre_id} (Similarity: {mitre_sim:.3f})")
+            lines.append(f"  - MITRE HITL Status: {mitre_hitl_note}")
+            lines.append(f"- **Recommended Remediation**: {recommendation}")
             lines.append("")
 
     report = "\n".join(lines)
     output_md.parent.mkdir(parents=True, exist_ok=True)
     output_md.write_text(report, encoding="utf-8")
     return report
+
 
 
 def run_pipeline(

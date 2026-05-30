@@ -1,220 +1,121 @@
-# GRC AI Pipeline (NIST 800-53 + CloudTrail + SBERT + Isolation Forest)
+<div align="center">
+  <h1>🛡️ GRC AI Automation Command Center</h1>
+  <p>
+    <b>An end-to-end Machine Learning pipeline that maps AWS CloudTrail logs to NIST 800-53 controls using NLP and detects compliance drift using Anomaly Detection.</b>
+  </p>
 
-## Live Demo
+  [![Python 3.11](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/)
+  [![FastAPI](https://img.shields.io/badge/FastAPI-0.109.2-009688.svg)](https://fastapi.tiangolo.com)
+  [![SBERT](https://img.shields.io/badge/SBERT-all--MiniLM--L6--v2-FF9900.svg)](https://www.sbert.net/)
+  [![Isolation Forest](https://img.shields.io/badge/Scikit--Learn-Isolation_Forest-F7931E.svg)](https://scikit-learn.org/)
+  [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-- URL: https://grc-ai-command.onrender.com/
-- Username: demo_admin
-- Password: GrcAI_Demo@2026
+</div>
 
-Quick test:
+---
 
-1. Login with the demo credentials above.
-2. Click `Run Full Pipeline`.
-3. Open `Run History` and click `View` on the latest run.
-4. Export `Report PDF` or `CSV Bundle`.
+## 📖 The Elevator Pitch
 
-This project implements all requested phases:
+Governance, Risk, and Compliance (GRC) analysts spend hundreds of hours manually mapping cloud logs to regulatory frameworks and searching for compliance violations. **GRC AI Automation Command Center** solves this by using Machine Learning to automate the process.
 
-1. Scrapes NIST SP 800-53 Rev 5 controls from a JSON/CSV source.
-2. Generates 1,000 synthetic AWS CloudTrail-style logs (compliant and non-compliant).
-3. Maps log text to top-3 NIST controls using SBERT (`all-MiniLM-L6-v2`).
-4. Trains an Isolation Forest model and flags `Potential Compliance Drift` where anomaly score < -0.5.
-5. Adds Human-in-the-loop (HITL) review when similarity < 0.7.
-6. Produces a final Markdown compliance report.
+This project features:
+1. **Natural Language Processing (NLP)**: Uses **Sentence-BERT (`all-MiniLM-L6-v2`)** to semantically map unstructured AWS CloudTrail logs to **NIST SP 800-53 Rev 5** security controls.
+2. **Machine Learning Anomaly Detection**: Trains an **Isolation Forest** model to detect "Compliance Drift" by flagging statistically anomalous log entries that represent potential security violations.
+3. **Beautiful Glassmorphic Dashboard**: A fully responsive **FastAPI** web application with real-time job polling, dark-mode styling, and role-based access control.
+4. **Human-in-the-Loop (HITL)**: Intelligently flags low-confidence SBERT predictions (< 70% similarity) for manual analyst review, combining AI efficiency with human accuracy.
 
-## Setup
+---
 
-```powershell
-pip install -r requirements.txt
+## ⚡ Architecture
+
+```mermaid
+graph TD
+    A[AWS CloudTrail Logs] -->|Phase 1| B[Data Engineering]
+    NIST[NIST 800-53 Data] --> B
+    B --> C[NLP SBERT Mapping]
+    C -->|Phase 2| D[Cosine Similarity Match]
+    D --> E[Isolation Forest Model]
+    E -->|Phase 3| F{Anomaly Detected?}
+    F -->|Yes| G[Flag as Compliance Drift]
+    F -->|No| H[Compliant]
+    G --> I[FastAPI Dashboard]
+    H --> I
+    I -->|Phase 4| J[Human-in-the-Loop Review]
+    J --> K[Final Markdown/PDF Report]
 ```
 
-## Run
+---
 
-```powershell
-python grc_ai_pipeline.py --output-dir outputs
-```
+## 🚀 Features at a Glance
 
-## Web Dashboard (FastAPI + Frontend)
+* **End-to-End Pipeline**: Handles data ingestion, ML mapping, anomaly scoring, and reporting in a single click.
+* **Smart Caching Engine**: Custom SBERT embedding cache serialized to disk/memory for lightning-fast repeated runs.
+* **Dynamic Thresholding**: The Isolation Forest automatically calculates optimal contamination thresholds based on the dataset.
+* **Role-Based Access Control**: `admin`, `analyst`, and `reviewer` roles.
+* **Modern UI**: Custom CSS with glassmorphism, responsive grids, and real-time toast notifications.
 
-This project now includes a demo-ready web app so you can present results in a single interface.
+---
 
-Start the dashboard:
+## 💻 Quick Start (Docker)
 
-```powershell
-uvicorn app:app --reload
-```
+The absolute easiest way to run the application is via Docker Compose:
 
-Open:
+```bash
+# 1. Clone the repository
+git clone https://github.com/yourusername/grc-ai-command-center.git
+cd grc-ai-command-center
 
-- `http://127.0.0.1:8000`
-
-What you can do from the dashboard:
-
-- Login with role-based access (analyst, reviewer, admin).
-- Run the full end-to-end pipeline as an asynchronous background job with live progress.
-- Switch across output sets (`outputs`, `outputs_sample`, and `demo_outputs` phase folders).
-- View telemetry (controls count, drift count, HITL-required count).
-- Inspect generated artifacts.
-- Browse recent SBERT mappings.
-- Review run history with status and duration.
-- Open per-run drilldown with artifact status and run metadata.
-- Export the report as PDF and download a ZIP bundle of CSV outputs.
-- Read the generated compliance drift report.
-
-Demo credentials:
-
-- `demo_admin / GrcAI_Demo@2026` (full access)
-- `demo_analyst / GrcAI_Analyst@2026` (can run pipeline)
-- `demo_reviewer / GrcAI_Review@2026` (read/export only)
-
-Security note:
-
-- User credentials are persisted in `data/users.json` with salted PBKDF2-SHA256 password hashes.
-- If `GRC_ADMIN_USER` and `GRC_ADMIN_PASSWORD` are set, those values are used for first-start user seeding.
-
-API endpoints (for future integrations):
-
-- `POST /api/login`
-- `GET /api/me`
-- `GET /api/output-sets`
-- `GET /api/summary?output_set=outputs`
-- `GET /api/artifacts?output_set=outputs`
-- `GET /api/mappings?output_set=outputs&limit=20`
-- `GET /api/report?output_set=outputs`
-- `GET /api/run-history?limit=25`
-- `GET /api/run-history/{run_id}`
-- `GET /api/jobs/{job_id}`
-- `GET /api/export/report.pdf?output_set=outputs`
-- `GET /api/export/csv-bundle?output_set=outputs`
-- `POST /api/run-pipeline`
-
-Sample run payload:
-
-```json
-{
-	"logs_count": 1000,
-	"similarity_threshold": 0.7,
-	"output_set": "outputs"
-}
-```
-
-Sample queued response from `POST /api/run-pipeline`:
-
-```json
-{
-	"message": "Pipeline job queued successfully.",
-	"job_id": "<uuid>",
-	"run_id": "<uuid>"
-}
-```
-
-## Scaling Path (Production)
-
-1. Split pipeline workloads into background jobs (Celery or RQ) so API requests return immediately.
-2. Add a small database (PostgreSQL) to persist run history, metrics, and reviewer decisions.
-3. Store output artifacts in object storage (S3/Azure Blob) with signed URLs.
-4. Add authentication and role-based access for analyst, reviewer, and admin personas.
-5. Containerize with Docker and deploy API/frontend behind a reverse proxy (Nginx) with HTTPS.
-6. Add observability: structured logs, metrics, tracing, and alerting.
-
-## Deploy (Docker)
-
-Build and run:
-
-```powershell
+# 2. Build and start the container
 docker compose up --build
 ```
 
-App URL:
+Access the dashboard at `http://localhost:8000`.
 
-- `http://127.0.0.1:8000`
+*(Demo Credentials: `demo_admin` / `GrcAI_Demo@2026`)*
 
-For production container startup, set env vars:
+---
 
-- `APP_ENV=production`
-- `GRC_ADMIN_USER=<your_admin_user>`
-- `GRC_ADMIN_PASSWORD=<strong_password>`
+## 🛠️ Local Development Setup
 
-Files:
+If you prefer to run it locally without Docker:
 
-- `Dockerfile`
-- `docker-compose.yml`
-- `.dockerignore`
-- `.env.example`
+```bash
+# 1. Create a virtual environment
+python -m venv .venv
 
-## Deploy (Render)
+# 2. Activate it (Windows)
+.venv\Scripts\activate
+# Activate it (Mac/Linux)
+source .venv/bin/activate
 
-1. Push this repo to GitHub.
-2. In Render, create a new Blueprint/Web Service and point to this repo.
-3. Render will detect `render.yaml`.
-4. Set secret env vars in Render:
-	- `GRC_ADMIN_USER`
-	- `GRC_ADMIN_PASSWORD`
-5. Deploy and open your generated Render URL.
+# 3. Install dependencies
+pip install -r requirements.txt
 
-## Deploy (Railway)
-
-1. Push this repo to GitHub.
-2. Create a new Railway project from the repo.
-3. Railway will use `railway.json` and start with uvicorn.
-4. Configure env vars:
-	- `APP_ENV=production`
-	- `GRC_ADMIN_USER`
-	- `GRC_ADMIN_PASSWORD`
-5. Deploy and use the generated public URL.
-
-## CI (GitHub Actions)
-
-This repo includes an automated CI workflow at `.github/workflows/ci.yml`.
-
-On every push and pull request, CI runs:
-
-1. Python dependency install from `requirements.txt`.
-2. Python syntax/compile checks for top-level project scripts.
-3. App import smoke test (`import app`).
-4. FastAPI home route smoke test (`GET /` returns 200).
-5. Docker image build validation (`docker build`).
-
-This ensures code quality and deployment readiness before merging changes.
-
-## Phase-Wise Demo (CPSC 6185)
-
-Phase 1: Data engineering
-
-```powershell
-python phase1_data_engineering.py --output-dir outputs_phase1 --logs-count 1000
+# 4. Run the FastAPI Server
+uvicorn app:app --reload
 ```
 
-Phase 2: SBERT top-3 mapping
+---
 
-```powershell
-python phase2_sbert_mapping.py --log-text "Root login without MFA from us-east-1" --output-json outputs_phase2/top3_controls.json
-```
+## 📊 The ML Pipeline Details
 
-Phase 3: Anomaly detection
+### Phase 1: Data Ingestion
+Scrapes NIST SP 800-53 Rev 5 controls and generates synthetic AWS CloudTrail-style logs (representing both compliant actions and risky anomalies like "Root login without MFA").
 
-```powershell
-python phase3_anomaly_detection.py --input-csv sample_processed_aws_logs.csv --output-csv outputs_phase3/anomaly_scored_logs.csv --threshold -0.5
-```
+### Phase 2: SBERT Mapping
+We utilize the `sentence-transformers` library to convert both the NIST controls and the log descriptions into high-dimensional vector embeddings. We then calculate Cosine Similarity to find the Top-3 closest NIST controls for every single log.
 
-Phase 4 + 5: Reporting + HITL
+### Phase 3: Isolation Forest
+An unsupervised ML algorithm (`sklearn.ensemble.IsolationForest`) is trained on the numerical features of the mapped logs. It isolates observations by randomly selecting a feature and a split value. Logs that require fewer splits to be isolated are flagged as anomalies (score < -0.5).
 
-```powershell
-python phase4_reporting_hitl.py --anomaly-csv outputs_phase3/anomaly_scored_logs.csv --report-md outputs_phase4/compliance_drift_report.md --mapping-json outputs_phase4/sbert_mapping_results.json --similarity-threshold 0.7 --interactive-hitl
-```
+### Phase 4: Human-in-the-Loop (HITL)
+AI isn't perfect. If the highest SBERT similarity score is below `0.70`, the system halts and routes the log to a human analyst via the UI for manual mapping resolution.
 
-Optional arguments:
+---
 
-- `--processed-logs-csv path/to/logs.csv` to train on your own processed AWS logs.
-- `--similarity-threshold 0.7` to change HITL trigger level.
-- `--interactive-hitl` to manually confirm low-confidence mappings.
-- `--logs-count 1000` to change synthetic log count.
+## 🤝 Contributing
+Contributions are welcome! Please feel free to submit a Pull Request or open an Issue.
 
-## Key Outputs
-
-- `outputs/nist_controls_rev5.json`
-- `outputs/nist_controls_rev5.csv`
-- `outputs/synthetic_cloudtrail_logs.csv`
-- `outputs/anomaly_scored_logs.csv`
-- `outputs/sbert_mapping_results.json`
-- `outputs/compliance_drift_report.md`
+## 📄 License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

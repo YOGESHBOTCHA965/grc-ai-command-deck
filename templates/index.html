@@ -4,11 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GRC AI Command Deck</title>
+  <!-- Typography & Styling -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/styles.css" />
+  <!-- CDNs for Icons, Charts, and Markdown Rendering -->
+  <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
   <div class="ambient-grid"></div>
@@ -17,96 +21,508 @@
   <div class="bg-orb orb-2"></div>
   <div class="bg-orb orb-3"></div>
 
-  <header class="topbar">
-    <div class="hero-copy">
-      <p class="eyebrow">Cloud Compliance Intelligence</p>
-      <h1>GRC AI Command Deck</h1>
-      <p class="hero-sub">A live operations cockpit for NIST control mapping, anomaly drift detection, and audit-ready evidence export.</p>
-      <div class="hero-chips">
-        <span class="hero-chip">Live Telemetry</span>
-        <span class="hero-chip">SBERT Mapping</span>
-        <span class="hero-chip">HITL Workflow</span>
+  <!-- ==========================================
+       Login Screen (Glassmorphic Gateway)
+       ========================================== -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="login-logo"><i data-lucide="shield-alert"></i></div>
+        <h2>GRC AI Command Deck</h2>
+        <p>Enter your authorization credentials to access the intelligence console.</p>
       </div>
-    </div>
-    <div class="right-tools">
-      <form id="loginForm" class="toolbar auth-toolbar">
-        <input type="text" id="username" placeholder="Username" value="demo_admin" required />
-        <input type="password" id="password" placeholder="Password" value="GrcAI_Demo@2026" required />
-        <button type="submit" class="btn btn-primary">Login</button>
-        <button type="button" id="logoutBtn" class="btn btn-secondary">Logout</button>
+      <form id="loginForm" class="login-form">
+        <div class="form-group">
+          <label for="username"><i data-lucide="user"></i> Username</label>
+          <div class="input-with-icon">
+            <input type="text" id="username" placeholder="Enter username" value="demo_admin" required />
+            <i data-lucide="user"></i>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="password"><i data-lucide="lock"></i> Password</label>
+          <div class="input-with-icon">
+            <input type="password" id="password" placeholder="Enter password" value="GrcAI_Demo@2026" required />
+            <i data-lucide="lock"></i>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin-top: 0.5rem;">
+          <i data-lucide="log-in"></i> Authenticate Console
+        </button>
       </form>
-      <div class="toolbar">
-        <span id="authBadge" class="auth-badge">Not logged in</span>
-        <label for="outputSetSelect">Output Set</label>
-        <select id="outputSetSelect"></select>
-        <button id="refreshBtn" class="btn btn-secondary">Refresh</button>
+      <div class="login-helper">
+        <h4><i data-lucide="info"></i> Seed Demo Accounts</h4>
+        <ul>
+          <li><code>demo_admin</code> / <code>GrcAI_Demo@2026</code> (Admin)</li>
+          <li><code>demo_analyst</code> / <code>GrcAI_Analyst@2026</code> (Analyst)</li>
+          <li><code>demo_reviewer</code> / <code>GrcAI_Review@2026</code> (Reviewer)</li>
+        </ul>
       </div>
     </div>
-  </header>
+  </div>
 
-  <main class="layout">
-    <section class="panel run-panel reveal">
-      <h2>Run Pipeline</h2>
-      <div class="form-grid">
-        <label>
-          Logs Count
-          <input type="number" id="logsCount" min="100" max="100000" value="1000" />
-        </label>
-        <label>
-          Similarity Threshold
-          <input type="number" id="similarityThreshold" min="0" max="1" step="0.01" value="0.7" />
-        </label>
+  <!-- ==========================================
+       Main Dashboard Shell
+       ========================================== -->
+  <div id="appContainer" class="app-container blur-bg">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand-section">
+        <div class="brand-icon"><i data-lucide="activity"></i></div>
+        <span class="brand-name">GRC AI DECK</span>
       </div>
-      <button id="runBtn" class="btn btn-primary">Run Full Pipeline</button>
-      <p id="runStatus" class="status">Ready.</p>
-      <div class="job-progress-wrap">
-        <div id="jobProgressBar" class="job-progress-bar"></div>
+      
+      <nav class="nav-menu">
+        <div class="nav-item active" data-tab="overview">
+          <i data-lucide="layout-dashboard"></i>
+          <span>Overview</span>
+        </div>
+        <div class="nav-item" data-tab="mappings">
+          <i data-lucide="git-compare"></i>
+          <span>Mappings & HITL</span>
+        </div>
+        <div class="nav-item" data-tab="report">
+          <i data-lucide="file-text"></i>
+          <span>Compliance Report</span>
+        </div>
+        <div class="nav-item" data-tab="history">
+          <i data-lucide="history"></i>
+          <span>Run History</span>
+        </div>
+        <div class="nav-item" data-tab="instructions">
+          <i data-lucide="book-open"></i>
+          <span>User Guide</span>
+        </div>
+      </nav>
+
+      <div class="user-profile-section">
+        <div class="user-profile-info">
+          <div id="userAvatar" class="user-avatar">A</div>
+          <div class="user-meta">
+            <span id="userDisplayName" class="user-display-name">Guest</span>
+            <span id="userRoleBadge" class="user-role-badge">Guest</span>
+          </div>
+        </div>
+        <button id="logoutBtn" class="btn-logout">
+          <i data-lucide="log-out"></i> <span>Console Exit</span>
+        </button>
       </div>
-      <p id="jobStage" class="status">No active job.</p>
-    </section>
+    </aside>
 
-    <section class="panel metrics-panel reveal">
-      <h2>Telemetry</h2>
-      <div class="metrics-grid">
-        <article class="metric-card"><span>Controls</span><strong id="controlsCount">0</strong></article>
-        <article class="metric-card"><span>Total Logs</span><strong id="logsCountMetric">0</strong></article>
-        <article class="metric-card"><span>Drift Flags</span><strong id="driftCount">0</strong></article>
-        <article class="metric-card"><span>HITL Required</span><strong id="hitlCount">0</strong></article>
+    <!-- Main Workspace Area -->
+    <main class="main-content">
+      <!-- Topbar Headers -->
+      <header class="top-header">
+        <div class="header-title-area">
+          <h1 id="tabTitle">Compliance Telemetry</h1>
+          <p id="tabSubtitle">Real-time status of NIST control mappings and anomaly drift rates.</p>
+        </div>
+        <div class="header-controls">
+          <div class="output-set-box">
+            <label for="outputSetSelect"><i data-lucide="folder"></i> Output Set</label>
+            <select id="outputSetSelect">
+              <option value="outputs">outputs</option>
+            </select>
+          </div>
+          <button id="refreshBtn" class="btn btn-secondary">
+            <i data-lucide="rotate-cw"></i> Synchronize
+          </button>
+        </div>
+      </header>
+
+      <!-- ==========================================
+           TAB: OVERVIEW / COCKPIT
+           ========================================== -->
+      <div id="tab-overview" class="tab-content active">
+        <!-- Telemetry Metrics -->
+        <div class="telemetry-row">
+          <div class="telemetry-card card-purple">
+            <div class="telemetry-icon-wrap"><i data-lucide="file-check"></i></div>
+            <div class="telemetry-card-data">
+              <span>NIST Controls</span>
+              <strong id="controlsCount">0</strong>
+            </div>
+          </div>
+          <div class="telemetry-card card-blue">
+            <div class="telemetry-icon-wrap"><i data-lucide="database"></i></div>
+            <div class="telemetry-card-data">
+              <span>Analyzed Logs</span>
+              <strong id="logsCountMetric">0</strong>
+            </div>
+          </div>
+          <div class="telemetry-card card-red">
+            <div class="telemetry-icon-wrap"><i data-lucide="alert-triangle"></i></div>
+            <div class="telemetry-card-data">
+              <span>Drift Anomalies</span>
+              <strong id="driftCount">0</strong>
+            </div>
+          </div>
+          <div class="telemetry-card card-yellow">
+            <div class="telemetry-icon-wrap"><i data-lucide="help-circle"></i></div>
+            <div class="telemetry-card-data">
+              <span>Pending HITL</span>
+              <strong id="hitlCount">0</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="overview-grid">
+          <!-- Left: Run Pipeline form -->
+          <div class="glass-panel">
+            <div class="panel-header">
+              <h2><i data-lucide="play-circle"></i> Pipeline Executor</h2>
+            </div>
+            <p class="panel-sub">Configure and execute the SBERT + Isolation Forest ML pipeline.</p>
+            <div class="run-form">
+              <label>
+                Synthetic Logs Volume
+                <input type="number" id="logsCount" min="100" max="100000" value="1000" />
+              </label>
+              <label>
+                Confidence Threshold (SBERT Mapping)
+                <input type="number" id="similarityThreshold" min="0" max="1" step="0.01" value="0.70" />
+              </label>
+              <button id="runBtn" class="btn btn-primary" style="margin-top: 0.5rem;">
+                <i data-lucide="zap"></i> Run Full Pipeline
+              </button>
+            </div>
+
+            <!-- Pipeline Job Progress Card -->
+            <div id="jobCard" class="job-card" style="display: none;">
+              <div class="job-card-header">
+                <span id="jobStage">Idle</span>
+                <span id="jobProgressText">0%</span>
+              </div>
+              <div class="progress-bar-container">
+                <div id="jobProgressBar" class="progress-bar-fill"></div>
+              </div>
+              <div id="jobStatusMsg" class="job-status-text">
+                <i data-lucide="refresh-cw" class="spin"></i> Executing model jobs...
+              </div>
+            </div>
+            <p id="runStatus" class="status" style="margin-top: 0.75rem; font-size: 0.82rem;"></p>
+          </div>
+
+          <!-- Right: Telemetry Visualizations -->
+          <div class="glass-panel">
+            <div class="panel-header">
+              <h2><i data-lucide="bar-chart-2"></i> Anomaly Drift Rates</h2>
+            </div>
+            <p class="panel-sub">Distribution of isolation forest scoring labels on log streams.</p>
+            <div class="chart-wrap">
+              <div class="chart-center-text">
+                <strong id="driftRatePercent">0%</strong>
+                <span>Drift Rate</span>
+              </div>
+              <canvas id="driftChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Output set details -->
+        <div class="glass-panel">
+          <div class="panel-header">
+            <h2><i data-lucide="file-archive"></i> Compliance Evidence Artifacts</h2>
+          </div>
+          <p class="panel-sub">Artifact files produced in the output directory for audits.</p>
+          <div class="table-wrap" id="artifactsTableWrap">
+            <!-- Artifacts table rendered dynamically -->
+            <p style="padding: 1rem; text-align: center; color: var(--muted);">Select or load output set to view.</p>
+          </div>
+        </div>
       </div>
-      <canvas id="driftChart" height="140"></canvas>
-    </section>
 
-    <section class="panel artifacts-panel reveal">
-      <h2>Artifacts</h2>
-      <div class="inline-actions">
-        <button id="downloadBundleBtn" class="btn btn-secondary">Export CSV Bundle</button>
+      <!-- ==========================================
+           TAB: COMPLIANCE MAPPINGS & HITL
+           ========================================= -->
+      <div id="tab-mappings" class="tab-content">
+        <div class="glass-panel">
+          <div class="panel-header">
+            <h2><i data-lucide="git-branch"></i> Control Mapping & Human-in-the-Loop Cockpit</h2>
+            <div class="panel-actions">
+              <button id="downloadBundleBtn" class="btn btn-secondary">
+                <i data-lucide="download"></i> Export ZIP Bundle
+              </button>
+            </div>
+          </div>
+          <p class="panel-sub">Manage SBERT-mapped NIST controls. Highlighted items with low similarity score (<span id="currentThresholdVal">0.70</span>) require human reviewer verification or override.</p>
+          
+          <div class="mappings-layout">
+            <!-- Left: Scrollable List of anomalous logs -->
+            <div class="mappings-list-column">
+              <h3 style="font-size: 0.9rem; color: var(--muted); margin-bottom: 0.6rem; text-transform: uppercase;">Flagged Drift Logs</h3>
+              <div id="mappingsList" class="mappings-list-wrap">
+                <!-- Dynamically generated list -->
+              </div>
+            </div>
+
+            <!-- Right: Interactive HITL Editor -->
+            <div class="hitl-editor-wrap">
+              <div class="glass-panel" style="margin-bottom: 0; background: rgba(8, 14, 26, 0.4); border-color: rgba(129, 170, 225, 0.12);">
+                <div id="hitlEditorEmpty" class="hitl-empty-state">
+                  <i data-lucide="mouse-pointer-click"></i>
+                  <p>Select a flagged log from the list on the left to verify or resolve its NIST control mapping.</p>
+                </div>
+                
+                <div id="hitlEditorContent" style="display: none;">
+                  <div style="margin-bottom: 1rem;">
+                    <span class="badge badge-danger" id="hitlDetailFlag">Drift Flagged</span>
+                    <span class="badge badge-warning" id="hitlDetailStatus">Pending Review</span>
+                  </div>
+                  
+                  <div style="margin-bottom: 1rem;">
+                    <h3 style="font-size: 0.88rem; color: var(--muted); margin-bottom: 0.3rem;">Raw AWS Log Event</h3>
+                    <div id="hitlDetailRawLog" class="editor-log-panel"></div>
+                  </div>
+
+                  <div class="recommendations-box" style="margin-bottom: 1.2rem;">
+                    <h3><i data-lucide="cpu"></i> Top-3 Model Suggestions</h3>
+                    <div id="hitlSuggestionsList">
+                      <!-- Rendered dynamically -->
+                    </div>
+                  </div>
+
+                  <div class="override-form">
+                    <h3><i data-lucide="edit-3"></i> Apply Decision Override</h3>
+                    <div class="override-grid" style="grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                      <label>
+                        Assign NIST Control ID
+                        <input type="text" id="overrideControlId" placeholder="e.g. ac-2 or ia-2.4" />
+                      </label>
+                      <label>
+                        Assign MITRE ATT&CK ID
+                        <input type="text" id="overrideMitreId" placeholder="e.g. T1078.004" />
+                      </label>
+                      <label style="grid-column: span 2;">
+                        Remediation & Review Action Notes
+                        <input type="text" id="overrideNotes" placeholder="Explain validation decision or configuration fixes..." />
+                      </label>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                      <button id="btnHitlAccept" class="btn btn-secondary"><i data-lucide="check"></i> Accept Top</button>
+                      <button id="btnHitlSubmit" class="btn btn-accent"><i data-lucide="check-square"></i> Apply Custom Verification</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div id="artifactsTableWrap"></div>
-    </section>
 
-    <section class="panel mappings-panel reveal">
-      <h2>Recent Mappings</h2>
-      <div id="mappingsList" class="scroll"></div>
-    </section>
+      <!-- ==========================================
+           TAB: COMPLIANCE REPORT
+           ========================================== -->
+      <div id="tab-report" class="tab-content">
+        <div class="glass-panel">
+          <div class="panel-header">
+            <h2><i data-lucide="file-text"></i> Audit-Ready Compliance Drift Report</h2>
+            <div class="panel-actions" style="display: flex; gap: 0.5rem;">
+              <button id="downloadPdfBtn" class="btn btn-accent">
+                <i data-lucide="file-down"></i> Export Report PDF
+              </button>
+            </div>
+          </div>
+          <p class="panel-sub">Official compliance drift report generated dynamically from final mapping states.</p>
+          
+          <div class="report-layout">
+            <!-- Left: HTML Rendered markdown report -->
+            <article class="report-markdown-content" id="reportRenderedHtml">
+              <!-- Rendered markdown goes here -->
+            </article>
 
-    <section class="panel history-panel reveal">
-      <h2>Run History</h2>
-      <div id="historyTableWrap"></div>
-    </section>
-
-    <section class="panel run-detail-panel reveal">
-      <h2>Run Detail</h2>
-      <div id="runDetailWrap">Select a run from history to inspect artifacts and metrics.</div>
-    </section>
-
-    <section class="panel report-panel reveal">
-      <h2>Compliance Drift Report</h2>
-      <div class="inline-actions">
-        <button id="downloadPdfBtn" class="btn btn-secondary">Export Report PDF</button>
+            <!-- Right: Metadata & Stats Sidebar -->
+            <div class="report-metadata-panel">
+              <div class="metadata-card">
+                <h3><i data-lucide="shield-check"></i> Audit Status</h3>
+                <div style="text-align: center; margin: 1rem 0;">
+                  <span class="badge badge-warning" id="reportDriftStatusBadge" style="font-size: 0.95rem; padding: 0.4rem 1rem;">Drift Detected</span>
+                </div>
+                <div class="metadata-row">
+                  <span>Last Evaluated</span>
+                  <strong id="reportMetaTime">-</strong>
+                </div>
+                <div class="metadata-row">
+                  <span>Scope Controls</span>
+                  <strong id="reportMetaControls">-</strong>
+                </div>
+                <div class="metadata-row">
+                  <span>Anomalies Flagged</span>
+                  <strong id="reportMetaAnomalies">-</strong>
+                </div>
+                <div class="metadata-row">
+                  <span>Unresolved HITL</span>
+                  <strong id="reportMetaPending">-</strong>
+                </div>
+              </div>
+              <div class="metadata-card" style="background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.15);">
+                <h3 style="color: var(--success);"><i data-lucide="server"></i> Production Mode</h3>
+                <p style="font-size: 0.8rem; line-height: 1.4; color: var(--muted); margin-top: 0.4rem;">
+                  This report is ready for export. Export as PDF to archive evidence, or bundle logs as ZIP to upload to your compliance management systems.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      <pre id="reportText" class="report-box">Loading...</pre>
-    </section>
-  </main>
+
+      <!-- ==========================================
+           TAB: RUN HISTORY & DETAIL
+           ========================================== -->
+      <div id="tab-history" class="tab-content">
+        <div class="glass-panel">
+          <div class="panel-header">
+            <h2><i data-lucide="history"></i> Job Run Audit History</h2>
+          </div>
+          <p class="panel-sub">Audit trail of pipeline executions, triggered users, and drift records.</p>
+          <div class="drilldown-layout">
+            <!-- Left side: Run logs list table -->
+            <div class="history-wrap">
+              <div class="table-wrap" id="historyTableWrap">
+                <!-- Rendered dynamically -->
+              </div>
+            </div>
+
+            <!-- Right side: Run Drilldown inspector -->
+            <div class="glass-panel" style="margin-bottom: 0; background: rgba(8, 14, 26, 0.4); border-color: rgba(129, 170, 225, 0.12);">
+              <div class="panel-header" style="margin-bottom: 0.8rem; padding-bottom: 0.5rem;">
+                <h2 style="font-size: 1rem;"><i data-lucide="search"></i> Run Drilldown Inspector</h2>
+              </div>
+              
+              <div id="runDetailWrap">
+                <div style="color: var(--muted); padding: 2rem 1rem; text-align: center;">
+                  <i data-lucide="list" style="font-size: 2rem; margin-bottom: 0.5rem; color: rgba(129, 170, 225, 0.15); display: block;"></i>
+                  Select a pipeline run from history to view details.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==========================================
+           TAB: USER GUIDE / INSTRUCTIONS
+           ========================================== -->
+      <div id="tab-instructions" class="tab-content">
+        <div class="glass-panel">
+          <div class="panel-header">
+            <h2><i data-lucide="book-open"></i> GRC AI System Operations Manual & Guide</h2>
+          </div>
+          <p class="panel-sub">Documentation detailing the architecture, phases, and operations of the GRC Compliance Engine.</p>
+          
+          <div class="docs-container">
+            <!-- Introduction -->
+            <section class="docs-section">
+              <h3>Overview</h3>
+              <p>
+                The <strong>GRC AI Command Deck</strong> is a production-grade governance and compliance monitoring suite. It utilizes machine learning to ingest cloud provider log streams, isolate anomalous actions (Policy Drift), and map those events to specific NIST SP 800-53 Rev 5 control regulations using Semantic BERT mappings.
+              </p>
+            </section>
+
+            <!-- Architecture Stages -->
+            <section class="docs-section">
+              <h3>The 5-Phase Pipeline Architecture</h3>
+              <div class="docs-architecture-card">
+                <div class="flow-step">
+                  <div class="flow-badge">1</div>
+                  <div class="flow-text">
+                    <h5>NIST Control Extraction</h5>
+                    <p>Scrapes/loads controls catalog (JSON/CSV) from standard NIST repositories. Extracts control codes, title headers, and statement descriptions, cataloging them by security families.</p>
+                  </div>
+                </div>
+                <div class="flow-step">
+                  <div class="flow-badge">2</div>
+                  <div class="flow-text">
+                    <h5>Log Synthesis / Ingestion</h5>
+                    <p>Simulates CloudTrail-style logs capturing critical access actions, API events, IAM states, region settings, and MFA usage flags.</p>
+                  </div>
+                </div>
+                <div class="flow-step">
+                  <div class="flow-badge">3</div>
+                  <div class="flow-text">
+                    <h5>Unsupervised Anomaly Isolation</h5>
+                    <p>Trains a Scikit-Learn <code>IsolationForest</code> on categorical properties (user roles, API verbs, source IPs, MFA status). Anomalous logs with high outliers score are flagged as <em>Compliance Drift</em>.</p>
+                  </div>
+                </div>
+                <div class="flow-step">
+                  <div class="flow-badge">4</div>
+                  <div class="flow-text">
+                    <h5>SBERT Semantic Matching (NIST & MITRE)</h5>
+                    <p>Leverages SBERT (<code>SentenceTransformer</code>) to match the descriptive text of each flagged log to all 1,200+ NIST controls AND a curated catalog of MITRE ATT&CK Enterprise Cloud techniques, calculating similarity scores for both frameworks.</p>
+                  </div>
+                </div>
+                <div class="flow-step">
+                  <div class="flow-badge">5</div>
+                  <div class="flow-text">
+                    <h5>Human-in-the-Loop (HITL) & Report Generation</h5>
+                    <p>If SBERT mapping confidence falls below the similarity threshold for either NIST or MITRE, the log event is routed to the HITL dashboard. Reviewers resolve mapping states directly, compiling audit-ready PDF reports.</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Steps on how to use -->
+            <section class="docs-section">
+              <h3>Dashboard Operational Guide</h3>
+              <div class="docs-step-grid">
+                <div class="docs-step-card">
+                  <div class="docs-step-num">01</div>
+                  <h4>Authenticate Session</h4>
+                  <p>Log in using one of the pre-configured role-based credentials. Different roles afford access privileges (Admins/Analysts run pipeline, Reviewers audit).</p>
+                </div>
+                <div class="docs-step-card">
+                  <div class="docs-step-num">02</div>
+                  <h4>Trigger Pipeline Run</h4>
+                  <p>Go to <strong>Overview</strong>, configure log count and SBERT similarity cutoff, and click <strong>Run Full Pipeline</strong>. A background worker thread handles execution while keeping the interface responsive.</p>
+                </div>
+                <div class="docs-step-card">
+                  <div class="docs-step-num">03</div>
+                  <h4>Resolve Mappings (HITL)</h4>
+                  <p>Review flagged drift events on the <strong>Mappings & HITL</strong> page. For low-confidence mappings, click the entry, select suggestions, or insert custom Control IDs, then submit validation decisions.</p>
+                </div>
+              </div>
+              <div class="docs-step-grid">
+                <div class="docs-step-card">
+                  <div class="docs-step-num">04</div>
+                  <h4>Audit Report Rendering</h4>
+                  <p>Inspect the markdown report on the <strong>Compliance Report</strong> page. Note how verified and adjusted human override decisions are immediately compiled in the report statement.</p>
+                </div>
+                <div class="docs-step-card">
+                  <div class="docs-step-num">05</div>
+                  <h4>Export Evidence Bundles</h4>
+                  <p>Export the formatted PDF document or download the CSV ZIP bundle. File bundles include the raw logs, scored anomalies, mapping logs, and the markdown reports.</p>
+                </div>
+                <div class="docs-step-card">
+                  <div class="docs-step-num">06</div>
+                  <h4>Inspect Job History</h4>
+                  <p>Browse detailed execution audits in the <strong>Run History</strong> panel. Inspect specific timestamps, user triggers, parameters, errors, and performance details.</p>
+                </div>
+              </div>
+            </section>
+
+            <!-- Caching mechanism description -->
+            <section class="docs-section" style="background: rgba(0, 178, 200, 0.03); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem;">
+              <h4 style="color: var(--accent-2); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
+                <i data-lucide="zap"></i> Core Optimization: Smart Caching
+              </h4>
+              <p style="font-size: 0.86rem; color: #bed1ed; line-height: 1.5;">
+                To solve the latency challenges of running neural networks on CPU, this app implements a dual-layer caching strategy:
+                <br/><br/>
+                • <strong>Model Caching:</strong> The SentenceTransformer PyTorch model is kept warm in memory, avoiding disk reads on every run.
+                <br/>
+                • <strong>NIST Controls Embeddings Caching:</strong> All 1,200+ control statement embeddings are pre-calculated and cached to memory and a serialized pickle file (<code>data/cache/</code>).
+                <br/>
+                • <strong>FastAPI Startup Warming:</strong> On server launch, a background daemon thread performs warming, loading the SBERT model and compiling embeddings. This means the very first execution runs instantly.
+              </p>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Toast Notification Wrapper -->
+  <div id="toastContainer" class="toast-container"></div>
 
   <script src="/static/app.js"></script>
 </body>

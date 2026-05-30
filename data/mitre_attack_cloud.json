@@ -1,0 +1,52 @@
+[
+  {
+    "technique_id": "T1078.004",
+    "name": "Valid Accounts: Cloud Accounts",
+    "description": "Adversaries may obtain and abuse credentials of existing cloud accounts (e.g., IAM users, root account) to gain initial access, maintain persistence, or escalate privileges without triggering traditional alerts. For example, logging into the console without Multi-Factor Authentication (MFA)."
+  },
+  {
+    "technique_id": "T1098.001",
+    "name": "Account Manipulation: Additional Cloud Credentials",
+    "description": "Adversaries may add access keys, SSH keys, or API tokens to existing cloud accounts. This allows them to maintain access (persistence) to the environment even if the primary password is changed."
+  },
+  {
+    "technique_id": "T1136.003",
+    "name": "Create Account: Cloud Account",
+    "description": "Adversaries may create new cloud accounts or IAM users to maintain persistent access to the victim cloud environment, bypassing detection of compromised existing accounts."
+  },
+  {
+    "technique_id": "T1530",
+    "name": "Data from Cloud Data Semantics",
+    "description": "Adversaries may access data stored in cloud storage buckets (like Amazon S3, Google Cloud Storage, or Azure Blobs) that are misconfigured or publicly exposed to exfiltrate sensitive data."
+  },
+  {
+    "technique_id": "T1562.001",
+    "name": "Impair Defenses: Disable or Modify System Firewall",
+    "description": "Adversaries may modify security groups, network ACLs, or firewall settings to permit inbound traffic on sensitive ports (e.g., SSH port 22 or RDP port 3389) from unrestricted IP addresses (0.0.0.0/0)."
+  },
+  {
+    "technique_id": "T1578.001",
+    "name": "Modify Cloud Infrastructure: Create Infrastructure",
+    "description": "Adversaries may spin up new virtual machines, container instances, or serverless functions in a cloud environment to run cryptomining scripts or establish command and control nodes."
+  },
+  {
+    "technique_id": "T1526",
+    "name": "Cloud Service Discovery",
+    "description": "Adversaries may list and enumerate active cloud services, resources, storage buckets, and IAM roles to map out the infrastructure and plan lateral movement."
+  },
+  {
+    "technique_id": "T1485",
+    "name": "Data Destruction",
+    "description": "Adversaries may delete critical cloud resources, S3 buckets, or database instances to disrupt organization operations or destroy evidence of intrusion."
+  },
+  {
+    "technique_id": "T1098",
+    "name": "Account Manipulation",
+    "description": "Adversaries may modify role assumptions, trust policies, or group memberships in IAM to escalate privileges or grant external entities access to internal cloud resources."
+  },
+  {
+    "technique_id": "T1539",
+    "name": "Steal Web Session Cookie",
+    "description": "Adversaries may capture AWS Management Console session cookies or federated login tokens to bypass Multi-Factor Authentication (MFA) requirements during lateral movement."
+  }
+]

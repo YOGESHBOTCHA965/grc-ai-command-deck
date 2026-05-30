@@ -1,3 +1,13 @@
+---
+title: GRC AI Command Center
+emoji: 🛡️
+colorFrom: indigo
+colorTo: purple
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 <div align="center">
   <h1>🛡️ GRC AI Automation Command Center</h1>
   <p>

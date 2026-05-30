@@ -13,7 +13,7 @@ import uuid
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request

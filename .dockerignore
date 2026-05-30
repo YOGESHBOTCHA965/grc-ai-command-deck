@@ -6,7 +6,10 @@ __pycache__
 *.pyo
 *.pyd
 *.log
-data
+data/cache/
+data/users.json
+data/run_history.json
+data/nist_catalog_cache.json
 outputs
 outputs_sample
 demo_outputs

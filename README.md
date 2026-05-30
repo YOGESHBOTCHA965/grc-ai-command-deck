@@ -27,7 +27,9 @@ pinned: false
 
 ## 🌐 Live Demo
 
-Access the hosted app here: https://grc-ai-command.onrender.com
+Access the hosted app here: [Hugging Face Space](https://huggingface.co/spaces/Yog965/grc-ai-command-deck)
+
+Direct Web App link: [yog965-grc-ai-command-deck.hf.space](https://yog965-grc-ai-command-deck.hf.space)
 
 ## 📖 The Elevator Pitch
 

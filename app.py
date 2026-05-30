@@ -420,6 +420,10 @@ _ensure_default_users()
 
 @app.on_event("startup")
 def startup_event():
+    if APP_ENV == "production":
+        print("Production environment detected. Skipping startup cache warming to conserve memory.")
+        return
+
     # Warm up GRC AI pipeline cache in a background thread to prevent blocking FastAPI startup
     def warm_cache():
         try:
